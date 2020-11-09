@@ -41,6 +41,7 @@ class Logger(object):
             reward (float): the reward of the current point
         '''
         self.writer.writerow({'timestep': timestep, 'reward': reward})
+        self.csv_file.flush()
         print('')
         self.log('----------------------------------------')
         self.log('  timestep     |  ' + str(timestep))

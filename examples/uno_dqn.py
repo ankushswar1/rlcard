@@ -1,23 +1,29 @@
 ''' An example of learning a Deep-Q Agent on UNO
 '''
 
-import tensorflow as tf
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+import tensorflow as tf
+tf.logging.set_verbosity(tf.logging.ERROR)  # or any {DEBUG, INFO, WARN, ERROR, FATAL}
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)  # or any {DEBUG, INFO, WARN, ERROR, FATAL}
+
+
 
 import rlcard
 from rlcard.agents import DQNAgent
 from rlcard.agents import RandomAgent
 from rlcard.utils.utils import set_global_seed, tournament
 from rlcard.utils import Logger
+import csv
 
 # Make environment
 env = rlcard.make('uno', config={'seed': 0})
 eval_env = rlcard.make('uno', config={'seed': 0})
 
 # Set the iterations numbers and how frequently we evaluate the performance
-evaluate_every = 100
-evaluate_num = 1000
-episode_num = 100000
+evaluate_every = 1
+evaluate_num = 500
+episode_num = 100
 
 # The intial memory size
 memory_init_size = 1000
@@ -31,54 +37,65 @@ log_dir = './experiments/uno_dqn_result/'
 # Set a global seed
 set_global_seed(0)
 
+data = []
+
 with tf.Session() as sess:
 
-    # Initialize a global step
-    global_step = tf.Variable(0, name='global_step', trainable=False)
+    with open(log_dir + 'A1.csv', 'w') as f:
+        csvw = csv.writer(f)
+        # Initialize a global step
+        global_step = tf.Variable(0, name='global_step', trainable=False)
 
-    # Set up the agents
-    agent = DQNAgent(sess,
-                     scope='dqn',
-                     action_num=env.action_num,
-                     replay_memory_size=20000,
-                     replay_memory_init_size=memory_init_size,
-                     train_every=train_every,
-                     state_shape=env.state_shape,
-                     mlp_layers=[512,512])
-    random_agent1 = RandomAgent1(action_num=eval_env.action_num)
-    random_agent2 = RandomAgent2(action_num=eval_env.action_num)
-    env.set_agents([agent, random_agent1, random_agent2])
-    eval_env.set_agents([agent, random_agent1, random_agent2])
+        # Save model
+        save_dir = 'models/uno_dqn'
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        saver = tf.train.Saver()
 
-    # Initialize global variables
-    sess.run(tf.global_variables_initializer())
+        # Set up the agents
+        agent = DQNAgent(sess,
+                        scope='dqn',
+                        action_num=env.action_num,
+                        replay_memory_size=20000,
+                        replay_memory_init_size=memory_init_size,
+                        train_every=train_every,
+                        state_shape=env.state_shape,
+                        mlp_layers=[512,512])
+        random_agent1 = RandomAgent(action_num=eval_env.action_num)
+        random_agent2 = RandomAgent(action_num=eval_env.action_num)
+        env.set_agents([agent, random_agent1, random_agent2])
+        eval_env.set_agents([agent, random_agent1, random_agent2])
 
-    # Init a Logger to plot the learning curve
-    logger = Logger(log_dir)
+        # Initialize global variables
+        sess.run(tf.global_variables_initializer())
 
-    for episode in range(episode_num):
+        # Init a Logger to plot the learning curve
+        logger = Logger(log_dir)
 
-        # Generate data from the environment
-        trajectories, _ = env.run(is_training=True)
+        for episode in range(episode_num):
+            print('Episode: ' + str(episode))
 
-        # Feed transitions into agent memory, and train the agent
-        for ts in trajectories[0]:
-            agent.feed(ts)
+            # Generate data from the environment
+            trajectories, _ = env.run(is_training=True)
 
-        # Evaluate the performance. Play with random agents.
-        if episode % evaluate_every == 0:
-            logger.log_performance(env.timestep, tournament(eval_env, evaluate_num)[0])
+            # Feed transitions into agent memory, and train the agent
+            for ts in trajectories[0]:
+                agent.feed(ts)
 
-    # Close files in the logger
-    logger.close_files()
+            # Evaluate the performance. Play with random agents.
+            if episode % evaluate_every == 0:
+                a, b = env.timestep, tournament(eval_env, evaluate_num)[0]
+                logger.log_performance(a, b)
+                csvw.writerow([a,b])
+                f.flush()
+                saver.save(sess, os.path.join(save_dir, 'model_' + str(episode)))
 
-    # Plot the learning curve
-    logger.plot('DQN')
+        # Close files in the logger
+        logger.close_files()
+
+        # Plot the learning curve
+        logger.plot('DQN')
     
-    # Save model
-    save_dir = 'models/uno_dqn'
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-    saver = tf.train.Saver()
-    saver.save(sess, os.path.join(save_dir, 'model'))
+
+    
     

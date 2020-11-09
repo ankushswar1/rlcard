@@ -8,7 +8,7 @@ import csv
 
 # Make environment
 env = rlcard.make('uno', config={'seed': 0})
-episode_num = 1
+episode_num = 50
 
 # Set a global seed
 set_global_seed(0)
