@@ -88,13 +88,14 @@ with tf.Session() as sess:
                 logger.log_performance(a, b)
                 csvw.writerow([a,b])
                 f.flush()
-                saver.save(sess, os.path.join(save_dir, 'model_' + str(episode)))
-
+                
         # Close files in the logger
         logger.close_files()
 
         # Plot the learning curve
         logger.plot('DQN')
+        saver.save(sess, os.path.join(save_dir, 'model_FINAL'))
+
     
 
     
